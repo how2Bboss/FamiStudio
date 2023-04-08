@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 
 namespace FamiStudio
@@ -35,7 +35,7 @@ namespace FamiStudio
             values = new sbyte[maxLength];
             canResize = type != EnvelopeType.FdsModulation && type != EnvelopeType.FdsWaveform;
             canRelease = type == EnvelopeType.Volume || type == EnvelopeType.WaveformRepeat || type == EnvelopeType.N163Waveform || type == EnvelopeType.FdsWaveform;
-            canLoop = type <= EnvelopeType.DutyCycle || type == EnvelopeType.WaveformRepeat || type == EnvelopeType.N163Waveform;
+            canLoop = type <= EnvelopeType.DutyCycle || type == EnvelopeType.WaveformRepeat || type == EnvelopeType.N163Waveform || type == EnvelopeType.YMNoiseFreq || type == EnvelopeType.YMMixerSettings;
             chunkLength = type == EnvelopeType.N163Waveform ? 16 : 1;
 
             if (canResize)
@@ -495,7 +495,15 @@ namespace FamiStudio
 
         public static sbyte GetEnvelopeZeroValue(int type)
         {
-            return type == EnvelopeType.Volume ? (sbyte)15: (sbyte)0;
+            switch (type)
+            {
+                case EnvelopeType.Volume:
+                    return (sbyte)15;
+                case EnvelopeType.YMMixerSettings:
+                    return (sbyte)2;
+                default:
+                    return (sbyte)0;
+            }
         }
 
         public static int GetEnvelopeMaxLength(int type)
@@ -525,6 +533,8 @@ namespace FamiStudio
                     return 1;
                 case EnvelopeType.FdsWaveform:
                     return 32;
+                case EnvelopeType.YMMixerSettings:
+                    return 2;
                 default:
                     return 0;
             }
@@ -595,11 +605,67 @@ namespace FamiStudio
                 min = 1;
                 max = 15; // Arbitrary.
             }
+            else if (type == EnvelopeType.YMMixerSettings)
+            {
+                min = 0;
+                max = 2;
+            }
+            else if (type == EnvelopeType.YMNoiseFreq)
+            {
+                min = 0;
+                max = 31;
+            }
             else
             {
                 min = -64;
                 max =  63;
             }
+        }
+
+        public static string GetDisplayValue(Instrument instrument, int type, int value)
+        {
+            if (type == EnvelopeType.YMMixerSettings)
+            {
+                switch (value)
+                {
+                    case 0: return "N+T";
+                    case 1: return "N";
+                    case 2: return "T";
+                }
+            }
+            else if (type == EnvelopeType.DutyCycle)
+            {
+                if (instrument.IsVrc6)
+                {
+                    switch (value)
+                    {
+                        case 0: return "6.25%";
+                        case 1: return "12.5%";
+                        case 2: return "18.75%";
+                        case 3: return "25%";
+                        case 4: return "31.25%";
+                        case 5: return "37.5%";
+                        case 6: return "43.75%";
+                        case 7: return "50%";
+                    }
+                }
+                else
+                {
+                    switch (value)
+                    {
+                        case 0: return "12.5%";
+                        case 1: return "25%";
+                        case 2: return "50%";
+                        case 3: return "-25%";
+                    }
+                }
+            }
+            else if (type == EnvelopeType.Arpeggio)
+            {
+                return value.ToString("+#;-#;0");
+            }
+
+            return value.ToString();
         }
 
         public bool ValuesInValidRange(Instrument instrument, int type)
@@ -657,19 +723,11 @@ namespace FamiStudio
         public const int FdsModulation  = 5;
         public const int N163Waveform   = 6;
         public const int WaveformRepeat = 7;
-        public const int Count          = 8;
+        public const int YMMixerSettings= 8;
+        public const int YMNoiseFreq    = 9;
+        public const int Count          = 10;
 
-        public static readonly string[] Names =
-        {
-            "Volume",
-            "Arpeggio",
-            "Pitch",
-            "Duty Cycle",
-            "FDS Waveform",
-            "FDS Modulation Table",
-            "N163 Waveform",
-            "Repeat",
-        };
+        public static readonly LocalizedString[] LocalizedNames = new LocalizedString[Count];
 
         public static readonly string[] ShortNames =
         {
@@ -680,7 +738,9 @@ namespace FamiStudio
             "FDSWave",
             "FDSMod",
             "N163Wave",
-            "Repeat"
+            "Repeat",
+            "MixerSettings",
+            "NoiseFreq",
         };
 
         public static readonly string[] Icons = new string[]
@@ -693,11 +753,18 @@ namespace FamiStudio
             "EnvelopeMod",
             "EnvelopeWave",
             "EnvelopeWave", // Never actually displayed
+            "EnvelopeMixer",
+            "EnvelopeNoise", 
         };
+
+        static EnvelopeType()
+        {
+            Localization.LocalizeStatic(typeof(EnvelopeType));
+        }
 
         public static int GetValueForName(string str)
         {
-            return Array.IndexOf(Names, str);
+            return Array.IndexOf(LocalizedNames, str);
         }
 
         public static int GetValueForShortName(string str)
@@ -718,7 +785,7 @@ namespace FamiStudio
         public const int CountNoResample = 7;
         public const int Resample        = 7;
         public const int CountNoPWM      = 8;
-        public const int PWM             = 8;  
+        public const int PWM             = 8; 
         public const int PWM2            = 9; 
         public const int PWM3            = 10;
         public const int Count           = 11;
